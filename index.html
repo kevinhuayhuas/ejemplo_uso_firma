@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Subir archivo ZIP a Firma Perú</title>
+    <link rel="stylesheet" href="css/bootstrap.min.css">
+    <script src="jquery-3.6.0.min.js"></script>
+</head>
+<body>
+
+<div class="container mt-4">
+    <h1>Firma de Documentos</h1>
+    <h5>Subir archivo .7z con PDFs para firmar</h5>
+    <form id="firmaForm" class="mt-4">
+        <div class="mb-3">
+            <label for="file" class="form-label">Archivo .7z</label>
+            <input type="file" id="file" name="file" accept=".7z" class="form-control" required>
+        </div>
+        <div class="mb-3">
+            <label for="creado_por" class="form-label">Creado por</label>
+            <input type="text" id="creado_por" name="creado_por" class="form-control" required>
+        </div>
+        <div class="mb-3">
+            <label for="sistema_id" class="form-label">Sistema ID</label>
+            <input type="number" id="sistema_id" name="sistema_id" class="form-control" required>
+        </div>
+        <button type="submit" class="btn btn-primary">Subir archivo</button>
+        <button type="button" class="btn btn-success" id="btnFirmar">Firmar Documentos</button>
+    </form>
+    <div class="mt-3" id="result"></div>
+</div>
+<div id="addComponent" style="display:none"></div>
+<script src="js/bootstrap.min.js"></script>
+<script src="jquery-3.6.0.min.js"></script>
+<script src="firma..min.js"></script>
+<script>
+    var jqFirmaPeru = jQuery.noConflict(true); // obligatorio
+    const url = 'http://192.168.21.88:3600';
+    const positionx = 100;
+    const positiony = 100;
+    const form = document.getElementById("firmaForm");
+    const resultDiv = document.getElementById("result");
+    let codigoArchivo = 0;
+    form.addEventListener("submit", async function (event) {
+        event.preventDefault();
+        const formData = new FormData();
+        const fileInput = document.getElementById("file");
+        const creadoPor = document.getElementById("creado_por").value;
+        const sistemaId = document.getElementById("sistema_id").value;
+        if (!fileInput.files.length) {
+            alert("Por favor selecciona un archivo .7z");
+            return;
+        }
+        formData.append("file", fileInput.files[0]);
+        formData.append("creado_por", creadoPor);
+        formData.append("sistema_id", sistemaId);
+        try {
+            const response = await fetch(`${url}/firma/subir-zip`, {
+                method: "POST",
+                body: formData
+            });
+            const data = await response.json();
+            if (response.ok) {
+                codigoArchivo = data.id;
+                resultDiv.innerHTML = `<div class="alert alert-success">Archivo subido correctamente. CODIGO: ${data.id || 'N/A'}</div>`;
+            } else {
+                resultDiv.innerHTML = `<div class="alert alert-danger">Error: ${data.message || 'Algo salió mal.'}</div>`;
+            }
+        } catch (error) {
+            resultDiv.innerHTML = `<div class="alert alert-danger">Error de red: ${error.message}</div>`;
+        }
+    });
+    document.addEventListener("DOMContentLoaded", function () {
+        const botonFirmar = document.getElementById("btnFirmar");
+        botonFirmar.addEventListener("click", async function () {
+            alert("Iniciando firma...");
+            const puerto = 9090;
+            const param = {
+                "param_url":`${url}/firma/build-firma-params/${codigoArchivo}/${positionx}/${positiony}`,
+                "param_token": "1626476967",
+                "document_extension": "pdf"
+            }
+            const jsonString = JSON.stringify(param);
+            const encodedBase64 = btoa(jsonString);
+            startSignature(puerto, encodedBase64 );
+        });
+    });
+    function signatureInit() {
+        // Aquí se puede poner un preload
+        alert('PROCESO INICIADO');
+    }
+    function signatureOk() {
+        // Cancelar el preload
+        alert('DOCUMENTO FIRMADO');
+    }
+    function signatureCancel() {
+        // Cancelar el preload
+        alert('OPERACIÓN CANCELADA');
+    }
+</script>
+</body>
+</html>

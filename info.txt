@@ -1,0 +1,39 @@
+¿Por qué sí o sí necesita jQuery?
+1.- El código depende de una variable global obligatoria:
+
+    var jqFirmaPeru = jQuery.noConflict(true);
+
+2.-Internamente, el script usa jqFirmaPeru.ajax(...), que es la forma jQuery de hacer peticiones HTTP.
+Esto no es reemplazable automáticamente por fetch ni por XMLHttpRequest sin reescribir el script fuente.
+
+3.-Las funciones startSignature(), processSignature(), etc., usan jqFirmaPeru directamente. Si no lo declaras, el script lanza errores como:
+
+    Variable jqFirmaPeru no definida en la aplicación web
+
+/**********************************************************************************************************************/
+
+¿Cuál es su objetivo?
+Este script se encarga de:
+
+-Detectar el sistema operativo del usuario (Windows, macOS, Linux).
+-Cargar la aplicación de Firma Perú localmente instalada (usando ClickOnce u OpenWebStart)  o  simplemente usando el navegador de Edge
+-Verificar si el servicio está corriendo localmente en un puerto (por defecto 9090 o el que pases).
+-Enviar al servicio el documento a firmar en formato JSON con los parámetros necesarios (param).
+-Esperar una respuesta "ok" y ejecutar funciones según el resultado (signatureOk() o signatureCancel()).
+
+
+param
+
+Parámetros para obtención de información para iniciar la firma digital,
+es un objeto JSON codificado en Base64, el objeto tiene la siguiente
+estructura:
+{
+"param_url": " http://localhost:8080/ruta/api/param",
+"param_token": "1626476967",
+"document_extension": "pdf"
+}
+Dnde:
+param_url, ruta de donde se obtendrá el objeto JSON con los
+parámetros de firma.
+param_token, tiene que ser un token de un único uso.
+document_extension, la extensión del documento a firmar
