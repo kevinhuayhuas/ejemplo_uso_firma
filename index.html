@@ -8,9 +8,19 @@
 </head>
 <body>
 <div class="container mt-4">
-    <h1>Firma de Documentos</h1>
-    <h5>Subir archivo .7z con PDFs para firmar</h5>
-    <form id="firmaForm" class="mt-4">
+    <div class="row">
+        <div class="col-6">
+            <h1>Firma de Documentos</h1>
+            <h5>Subir archivo .7z con PDFs para firmar</h5>
+        </div>
+        <div class="col-6 text-end">
+            <!--Iniciar session XD-->
+            <button id="btnLogin" class="btn btn-danger">Iniciar sesión</button>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-12">
+            <form id="firmaForm" class="mt-4">
         <div class="mb-3">
             <label for="file" class="form-label">Archivo .7z</label>
             <input type="file" id="file" name="file" accept=".7z" class="form-control" required>
@@ -27,6 +37,9 @@
         <button type="button" class="btn btn-success" id="btnFirmar">Firmar Documentos</button>
         <button type="button" class="btn btn-warning" id="btnDescargar">Descargar Docuemntos</button>
     </form>
+        </div>
+    </div>
+    <!--Obligatorio =(-->
     <div class="mt-3" id="result"></div>
 </div>
 <div id="addComponent" style="display:none"></div>
@@ -35,61 +48,46 @@
 <script src="firma..min.js"></script>
 <script>
     var jqFirmaPeru = jQuery.noConflict(true); // obligatorio
-    const url = 'http://192.168.21.88:3600'; // Ruta del MS de firma
+    //const url = 'http://192.168.21.88:3600'; // Ruta del MS de firma local
+    const urlGateway = 'https://ms.dirisln.gob.pe';
+    const urlFirma= `${urlGateway}/api/firmaPeru`;
     const positionx = 100;
     const positiony = 100;
-    const form = document.getElementById("firmaForm");
+
     const resultDiv = document.getElementById("result");
     let codigoArchivo = 0;
-    form.addEventListener("submit", async function (event) {
-        event.preventDefault();
-        const formData = new FormData();
-        const fileInput = document.getElementById("file");
-        const creadoPor = document.getElementById("creado_por").value;
-        const sistemaId = document.getElementById("sistema_id").value;
-        if (!fileInput.files.length) {
-            alert("Por favor selecciona un archivo .7z");
-            return;
-        }
-        formData.append("file", fileInput.files[0]);
-        formData.append("creado_por", creadoPor);
-        formData.append("sistema_id", sistemaId);
-        try {
-            const response = await fetch(`${url}/firma/subir-zip`, {
-                method: "POST",
-                body: formData
-            });
-            const data = await response.json();
-            if (response.ok) {
-                codigoArchivo = data.id;
-                resultDiv.innerHTML = `<div class="alert alert-success">Archivo subido correctamente. CODIGO: ${codigoArchivo|| 'N/A'}</div>`;
-            } else {
-                resultDiv.innerHTML = `<div class="alert alert-danger">Error: ${data.message || 'Algo salió mal.'}</div>`;
-            }
-        } catch (error) {
-            resultDiv.innerHTML = `<div class="alert alert-danger">Error de red: ${error.message}</div>`;
-        }
-    });
     document.addEventListener("DOMContentLoaded", function () {
+        document.getElementById("btnLogin").addEventListener("click", loginUsuario);
         const botonFirmar = document.getElementById("btnFirmar");
         const botonDescargar = document.getElementById("btnDescargar");
+        const form = document.getElementById("firmaForm");
         botonFirmar.addEventListener("click", async function () {
+            if(!codigoArchivo>0){
+                alert("Debes completar el formulario");
+                return;
+            }
             alert("Iniciando firma...");
             const puerto = 9090;
             const param = {
-                "param_url":`${url}/firma/build-firma-params/${codigoArchivo}/${positionx}/${positiony}`,
+                "param_url":`${urlFirma}/firma/build-firma-params/${codigoArchivo}/${positionx}/${positiony}`,
                 "param_token": "1626476967",
                 "document_extension": "pdf"
             }
             const jsonString = JSON.stringify(param);
             const encodedBase64 = btoa(jsonString);
             startSignature(puerto, encodedBase64 );
+
         });
         botonDescargar.addEventListener("click", async function () {
             try {
                 alert("Descargando...");
 
-                const response = await fetch(`${url}/firma/descargar-firmado/${codigoArchivo}`);
+                const response = await fetch(`${urlFirma}/firma/descargar-firmado/${codigoArchivo}`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
                 if (!response.ok) {
                     const errorText = await response.text();
                     throw new Error(`Error al descargar: ${errorText}`);
@@ -108,11 +106,78 @@
                 alert(`No se pudo descargar el archivo: ${error.message}`);
             }
         });
+        form.addEventListener("submit", async function (event) {
+            event.preventDefault();
+            const formData = new FormData();
+            const fileInput = document.getElementById("file");
+            const creadoPor = document.getElementById("creado_por").value;
+            const sistemaId = document.getElementById("sistema_id").value;
+            if (!fileInput.files.length) {
+                alert("Por favor selecciona un archivo .7z");
+                return;
+            }
+            formData.append("file", fileInput.files[0]);
+            formData.append("creado_por", creadoPor);
+            formData.append("sistema_id", sistemaId);
+            try {
+                const response = await fetch(`${urlFirma}/firma/subir-zip`, {
+                    method: "POST",
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: formData
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    codigoArchivo = data.id;
+                    resultDiv.innerHTML = `<div class="alert alert-success">Archivo subido correctamente. CODIGO: ${codigoArchivo|| 'N/A'}</div>`;
+                } else {
+                    resultDiv.innerHTML = `<div class="alert alert-danger">Error: ${data.message || 'Algo salió mal.'}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="alert alert-danger">Error de red: ${error.message}</div>`;
+            }
+        });
     });
+
+    /*Loguin al Gateway*/
+    let token = null;
+    async function loginUsuario() {
+
+        const loginResponse = await fetch(`${urlGateway}/api/auth/login`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                usuario: 'kevin.huayhuas',
+                clave: 'huayhuas4592'
+            })
+        });
+
+        const data = await loginResponse.json();
+
+        if (loginResponse.status === 429) {
+            resultDiv.innerHTML = `<div class="alert alert-warning">Demasiadas solicitudes. Espera un momento e inténtalo de nuevo.</div>`;
+            return false;
+        }
+
+        if (!loginResponse.ok || !data.token) {
+            resultDiv.innerHTML = `<div class="alert alert-danger">Login fallido: ${data.message || 'Credenciales incorrectas'}</div>`;
+            return false;
+        }
+
+        token = data.token;
+        resultDiv.innerHTML = `<div class="alert alert-success">Autenticado correctamente, puedes inicar con cargar tu archivo en .7z, si no lo tienes puedes descargarlo de <a href="https://www.7-zip.org/" target="_blank">aqui</a></div>`;
+        console.log('Login exitoso. Token')//, token);
+        return true;
+    }
+    /*Personaliza tu Mensaje*/
     function signatureInit() {
         // Aquí se puede poner un preload
         alert('PROCESO INICIADO');
     }
+    /*Personaliza tu Respuesta*/
     function signatureOk() {
         // Cancelar el preload
         alert('DOCUMENTO FIRMADO');
@@ -121,6 +186,8 @@
         // Cancelar el preload
         alert('OPERACIÓN CANCELADA');
     }
+
+
 </script>
 </body>
 </html>
